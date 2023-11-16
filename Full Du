@@ -1,0 +1,156 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <unistd.h>
+
+#define BUFFER_SIZE 1024
+#define PORT 9652
+
+int main() {
+    int serverSocket, clientSocket;
+    struct sockaddr_in serverAddr, clientAddr;
+    socklen_t clientLen = sizeof(clientAddr);
+    char buffer[BUFFER_SIZE];
+
+    // Create socket
+    serverSocket = socket(AF_INET, SOCK_STREAM, 0);
+    if (serverSocket == -1) {
+        perror("Socket creation failed");
+        exit(EXIT_FAILURE);
+    }
+
+    // Initialize server address structure
+    memset(&serverAddr, 0, sizeof(serverAddr));
+    serverAddr.sin_family = AF_INET;
+    serverAddr.sin_addr.s_addr = INADDR_ANY;
+    serverAddr.sin_port = htons(PORT);
+
+    // Bind the socket
+    if (bind(serverSocket, (struct sockaddr*)&serverAddr, sizeof(serverAddr)) == -1) {
+        perror("Bind failed");
+        close(serverSocket);
+        exit(EXIT_FAILURE);
+    }
+
+    // Listen for incoming connections
+    if (listen(serverSocket, 5) == -1) {
+        perror("Listen failed");
+        close(serverSocket);
+        exit(EXIT_FAILURE);
+    }
+
+    printf("Server is listening on port %d\n", PORT);
+
+    // Accept a connection
+    clientSocket = accept(serverSocket, (struct sockaddr*)&clientAddr, &clientLen);
+    if (clientSocket == -1) {
+        perror("Accept failed");
+        close(serverSocket);
+        exit(EXIT_FAILURE);
+    }
+
+    printf("Client connected\n");
+
+    // Communication loop
+    while (1) {
+        // Receive data from client
+        ssize_t bytesRead = recv(clientSocket, buffer, sizeof(buffer), 0);
+        if (bytesRead <= 0) {
+            perror("Receive failed");
+            break;
+        }
+
+        // Print received message
+        buffer[bytesRead] = '\0';
+        printf("Client: %s\n", buffer);
+
+        // Get user input
+        printf("Server: ");
+        fgets(buffer, sizeof(buffer), stdin);
+
+        // Send the input back to the client
+        if (send(clientSocket, buffer, strlen(buffer), 0) == -1) {
+            perror("Send failed");
+            break;
+        }
+    }
+
+    // Close sockets
+    close(clientSocket);
+    close(serverSocket);
+
+    return 0;
+}
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <unistd.h>
+
+#define BUFFER_SIZE 1024
+#define PORT 9652
+#define SERVER_IP "127.0.0.1"
+
+int main() {
+    int clientSocket;
+    struct sockaddr_in serverAddr;
+    char buffer[BUFFER_SIZE];
+
+    // Create socket
+    clientSocket = socket(AF_INET, SOCK_STREAM, 0);
+    if (clientSocket == -1) {
+        perror("Socket creation failed");
+        exit(EXIT_FAILURE);
+    }
+
+    // Initialize server address structure
+    memset(&serverAddr, 0, sizeof(serverAddr));
+    serverAddr.sin_family = AF_INET;
+    serverAddr.sin_addr.s_addr = inet_addr(SERVER_IP);
+    serverAddr.sin_port = htons(PORT);
+
+    // Connect to the server
+    if (connect(clientSocket, (struct sockaddr*)&serverAddr, sizeof(serverAddr)) == -1) {
+        perror("Connection failed");
+        close(clientSocket);
+        exit(EXIT_FAILURE);
+    }
+
+    printf("Connected to the server\n");
+
+    // Communication loop
+    while (1) {
+        // Get user input
+        printf("Client: ");
+        fgets(buffer, sizeof(buffer), stdin);
+
+        // Send the input to the server
+        if (send(clientSocket, buffer, strlen(buffer), 0) == -1) {
+            perror("Send failed");
+            break;
+        }
+
+        // Receive data from server
+        ssize_t bytesRead = recv(clientSocket, buffer, sizeof(buffer), 0);
+        if (bytesRead <= 0) {
+            perror("Receive failed");
+            break;
+        }
+
+        // Print received message
+        buffer[bytesRead] = '\0';
+        printf("Server: %s\n", buffer);
+    }
+
+    // Close socket
+    close(clientSocket);
+
+    return 0;
+}
+
